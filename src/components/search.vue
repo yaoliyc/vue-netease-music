@@ -1,62 +1,66 @@
 <template>
   <div class="search">
     <el-input
-      ref="input"
+      @click.native="onClickInput"
+      @input="onInput"
+      @keypress.native.enter="onEnterPress"
       placeholder="搜索"
       prefix-icon="el-icon-search"
-      v-model="searchKeyword"
-      @input="onInput"
-      @focus="onFocus"
-    >
-    </el-input>
-    <LeaveHide
-      :reserveDoms="reserveDoms"
-      @clickOutside="searchPanelShow = false"
-      :show="searchPanelShow"
+      ref="input"
+      v-model.trim="searchKeyword"
+    ></el-input>
+    <Toggle
+      :reserveDoms="[$refs.input && $refs.input.$el]"
+      :show.sync="searchPanelShow"
     >
       <div
-        v-show="searchPanelShow"
         class="search-panel"
+        v-show="searchPanelShow"
       >
         <div
-          v-if="suggestShow"
           class="search-suggest"
+          v-if="suggestShow"
         >
           <div
             :key="index"
-            v-for="(normalizedSuggest, index) in normalizedSuggests"
             class="suggest-item"
+            v-for="(normalizedSuggest, index) in normalizedSuggests"
           >
             <div class="title">
+              <Icon
+                :size="12"
+                :type="normalizedSuggest.icon"
+              />
               {{normalizedSuggest.title}}
             </div>
             <ul class="list">
               <li
-                v-for="item in normalizedSuggest.data"
                 :key="item.id"
-                class="item"
                 @click="normalizedSuggest.onClick(item)"
+                class="item"
+                v-for="item in normalizedSuggest.data"
               >
-                {{normalizedSuggest.renderName ? normalizedSuggest.renderName(item) : item.name}}
+                <HighlightText
+                  :highlightText="searchKeyword"
+                  :text="normalizedSuggest.renderName ? normalizedSuggest.renderName(item) : item.name"
+                />
               </li>
             </ul>
           </div>
         </div>
         <div
-          v-else
           class="search-hots"
+          v-else
         >
           <div class="block">
             <p class="title">热门搜索</p>
             <div class="tags">
               <NButton
-                class="button"
                 :key="index"
-                v-for="(hot, index) in searchHots"
                 @click="onClickHot(hot)"
-              >
-                {{hot.first}}
-              </NButton>
+                class="button"
+                v-for="(hot, index) in searchHots"
+              >{{hot.first}}</NButton>
             </div>
           </div>
           <div class="block">
@@ -66,33 +70,30 @@
               v-if="searchHistorys.length"
             >
               <NButton
-                class="button"
                 :key="index"
+                @click="onClickHot(history)"
+                class="button"
                 v-for="(history, index) in searchHistorys"
-              >
-                {{history.first}}
-              </NButton>
+              >{{history.first}}</NButton>
             </div>
             <div
               class="empty"
               v-else
-            >
-              暂无搜索历史
-            </div>
+            >暂无搜索历史</div>
           </div>
         </div>
       </div>
-    </LeaveHide>
+    </Toggle>
   </div>
 </template>
 
 <script type="text/ecmascript-6">
-import { mapActions, mapMutations } from "vuex"
-import LeaveHide from "@/base/leave-hide"
-import { getSearchHot, getSearchSuggest } from "@/api/search"
-import { getAlbum } from "@/api/album"
-import { createSong, genArtistisText } from "@/utils/song"
-import { debounce } from "@/utils/common"
+import storage from "good-storage"
+import { mapActions, mapMutations } from "@/store/helper/music"
+import { getSearchHot, getSearchSuggest } from "@/api"
+import { createSong, genArtistisText, debounce } from "@/utils"
+
+const SEARCH_HISTORY_KEY = "__search_history__"
 export default {
   async created() {
     const {
@@ -100,20 +101,23 @@ export default {
     } = await getSearchHot()
     this.searchHots = hots
   },
-  mounted() {
-    this.reserveDoms = [this.$refs.input.$el]
-  },
   data() {
     return {
       searchPanelShow: false,
       searchKeyword: "",
       searchHots: [],
-      searchHistorys: [],
+      searchHistorys: storage.get(SEARCH_HISTORY_KEY, []),
       suggest: {},
       reserveDoms: []
     }
   },
   methods: {
+    onClickInput() {
+      this.searchPanelShow = true
+    },
+    onBlur() {
+      this.searchPanelShow = false
+    },
     onInput: debounce(function(value) {
       if (!value.trim()) {
         return
@@ -122,16 +126,20 @@ export default {
         this.suggest = result
       })
     }, 500),
-    onFocus() {
-      this.searchPanelShow = true
-    },
-    onBlur() {
-      this.searchPanelShow = false
-    },
     onClickHot(hot) {
       const { first } = hot
-      this.searchKeyword = first
-      this.onInput(first)
+      this.goSearch(first)
+    },
+    onEnterPress() {
+      if (this.searchKeyword) {
+        this.goSearch(this.searchKeyword)
+      }
+    },
+    goSearch(keywords) {
+      this.searchHistorys.push({ first: keywords })
+      storage.set(SEARCH_HISTORY_KEY, this.searchHistorys)
+      this.$router.push(`/search/${keywords}`)
+      this.searchPanelShow = false
     },
     async onClickSong(item) {
       const {
@@ -139,29 +147,32 @@ export default {
         name,
         artists,
         duration,
-        album: { id: albumId }
+        mvid,
+        album: { id: albumId, name: albumName }
       } = item
-      const { songs } = await getAlbum(albumId)
-      const {
-        al: { picUrl }
-      } = songs.find(({ id: songId }) => songId === id) || {}
       const song = createSong({
         id,
         name,
         artists,
         duration,
-        img: picUrl
+        albumId,
+        albumName,
+        mvId: mvid
       })
       this.startSong(song)
-      this.setPlaylist({ data: [song] })
+      this.addToPlaylist(song)
     },
     onClickPlaylist(item) {
       const { id } = item
       this.$router.push(`/playlist/${id}`)
       this.searchPanelShow = false
     },
+    onClickMv(mv) {
+      const { id } = mv
+      this.$router.push(`/mv/${id}`)
+    },
     ...mapMutations(["setPlaylist"]),
-    ...mapActions(["startSong"])
+    ...mapActions(["startSong", "addToPlaylist"])
   },
   computed: {
     suggestShow() {
@@ -176,6 +187,7 @@ export default {
       return [
         {
           title: "单曲",
+          icon: "music",
           data: this.suggest.songs,
           renderName(song) {
             return `${song.name} - ${genArtistisText(song.artists)}`
@@ -184,14 +196,21 @@ export default {
         },
         {
           title: "歌单",
+          icon: "playlist",
           data: this.suggest.playlists,
           onClick: this.onClickPlaylist.bind(this)
+        },
+        {
+          title: "mv",
+          icon: "mv",
+          data: this.suggest.mvs,
+          renderName(mv) {
+            return `${mv.name} - ${genArtistisText(mv.artists)}`
+          },
+          onClick: this.onClickMv.bind(this)
         }
       ].filter(item => item.data && item.data.length)
     }
-  },
-  components: {
-    LeaveHide
   }
 }
 </script>
@@ -207,9 +226,10 @@ export default {
     bottom: $mini-player-height;
     right: 0;
     width: 350px;
-    background: var(--playlist-bgcolor);
+    background: var(--search-bgcolor);
     z-index: $search-panel-z-index;
     font-size: $font-size-sm;
+    overflow-y: auto;
     @include box-shadow;
 
     .block {

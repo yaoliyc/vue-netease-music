@@ -1,116 +1,128 @@
+// 底部播放栏组件
 <template>
-  <div
-    id="mini-player"
-    class="mini-player"
-  >
+  <div class="mini-player" id="mini-player">
     <!-- 歌曲内容 -->
     <div class="song">
       <template v-if="hasCurrentSong">
-        <div
-          v-if="currentSong.img"
-          class="img-wrap"
-          @click="togglePlayerShow"
-        >
-          <img
-            class="blur"
-            :src="$utils.genImgUrl(currentSong.img, 80)"
-          />
+        <div @click="togglePlayerShow" class="img-wrap">
+          <div class="mask"></div>
+          <img v-lazy="$utils.genImgUrl(currentSong.img, 80)" class="blur" />
           <div class="player-control">
-            <Icon
-              :size="24"
-              :type="playControlIcon"
-              color="white"
-            />
+            <Icon :size="24" :type="playControlIcon" color="white" />
           </div>
         </div>
         <div class="content">
           <div class="top">
-            <p class="name">{{currentSong.name}}</p>
+            <p class="name">{{ currentSong.name }}</p>
             <p class="split">-</p>
-            <p class="artists">{{currentSong.artistsText}}</p>
+            <p class="artists">{{ currentSong.artistsText }}</p>
           </div>
           <div class="time">
-            <span class="played-time">{{$utils.formatTime(currentTime)}}</span>
+            <span class="played-time">{{
+              $utils.formatTime(currentTime)
+            }}</span>
             <span class="split">/</span>
-            <span class="total-time">{{$utils.formatTime(currentSong.duration / 1000)}}</span>
+            <span class="total-time">{{
+              $utils.formatTime(currentSong.duration / 1000)
+            }}</span>
           </div>
         </div>
       </template>
     </div>
     <!-- 控制台 -->
     <div class="control">
-      <Icon
-        class="icon"
-        type="prev"
-        :size="24"
-        @click.native="prev"
-      />
-      <div
-        @click="togglePlaying"
-        class="play-icon"
+      <Icon :size="24" @click="prev" class="icon" type="prev" />
+      <el-popover
+        :value="isPlayErrorPromptShow"
+        placement="top"
+        trigger="manual"
+        width="160"
       >
-        <Icon
-          :type="playIcon"
-          :size="24"
-        />
-      </div>
+        <p>请点击开始播放。</p>
+        <div @click="togglePlaying" class="play-icon" slot="reference">
+          <Icon :size="24" :type="playIcon" />
+        </div>
+      </el-popover>
 
-      <Icon
-        class="icon"
-        type="next"
-        :size="24"
-        @click.native="next"
-      />
+      <Icon :size="24" @click="next" class="icon" type="next" />
     </div>
 
     <div class="mode">
+      <Share :shareUrl="shareUrl" class="mode-item" v-show="hasCurrentSong" />
+
+      <!-- 模式 -->
+      <el-popover placement="top" trigger="hover" width="160">
+        <p>{{ playModeText }}</p>
+        <Icon
+          :size="20"
+          :type="modeIcon"
+          @click="onChangePlayMode"
+          class="mode-item"
+          slot="reference"
+        />
+      </el-popover>
+      <!-- 播放列表 -->
       <el-popover
-        placement="top"
-        width="160"
         :value="isPlaylistPromptShow"
+        placement="top"
         trigger="manual"
+        width="160"
       >
         <p>已更新歌单</p>
         <Icon
+          :size="20"
+          @click="togglePlaylistShow"
+          class="mode-item"
           slot="reference"
-          class="icon"
           type="playlist"
-          :size="18"
-          @click.native="togglePlaylistShow"
         />
       </el-popover>
       <!-- 音量 -->
-      <Volume @volumeChange="onVolumeChange" />
+      <div class="volume-item">
+        <Volume :volume="volume" @volumeChange="onVolumeChange" />
+      </div>
+      <!-- github -->
+      <Icon :size="20" @click="goGitHub" class="mode-item" type="github" />
     </div>
-    <div
-      v-if="hasCurrentSong"
-      class="progress-bar-wrap"
-    >
+    <div class="progress-bar-wrap">
       <ProgressBar
+        :disabled="!hasCurrentSong"
         :percent="playedPercent"
         @percentChange="onProgressChange"
       />
     </div>
     <audio
-      ref="audio"
       :src="currentSong.url"
       @canplay="ready"
       @ended="end"
       @timeupdate="updateTime"
+      ref="audio"
     ></audio>
   </div>
 </template>
 
 <script type="text/ecmascript-6">
-import { mapState, mapMutations, mapGetters, mapActions } from "vuex"
-import ProgressBar from "@/base/progress-bar"
-import Volume from '@/base/volume'
+import {
+  mapState,
+  mapMutations,
+  mapGetters,
+  mapActions
+} from "@/store/helper/music"
+import Storage from "good-storage"
+import Share from "@/components/share"
+import { VOLUME_KEY, playModeMap, isDef } from "@/utils"
 
+const DEFAULT_VOLUME = 0.75
 export default {
   data() {
     return {
+      isPlayErrorPromptShow: false,
       songReady: false,
+      volume: Storage.get(VOLUME_KEY, DEFAULT_VOLUME)
     }
+  },
+  mounted() {
+    this.audio.volume = this.volume
   },
   methods: {
     togglePlaying() {
@@ -122,11 +134,18 @@ export default {
     ready() {
       this.songReady = true
     },
-    play() {
+    async play() {
       if (this.songReady) {
-        this.audio.play().catch(() => {
+        try {
+          await this.audio.play()
+          if (this.isPlayErrorPromptShow) {
+            this.isPlayErrorPromptShow = false
+          }
+        } catch (error) {
+          // 提示用户手动播放
+          this.isPlayErrorPromptShow = true
           this.setPlayingState(false)
-        })
+        }
       }
     },
     pause() {
@@ -154,6 +173,17 @@ export default {
     },
     onVolumeChange(percent) {
       this.audio.volume = percent
+      Storage.set(VOLUME_KEY, percent)
+    },
+    onChangePlayMode() {
+      const modeKeys = Object.keys(playModeMap)
+      const currentModeIndex = modeKeys.findIndex(
+        key => playModeMap[key].code === this.playMode
+      )
+      const nextIndex = (currentModeIndex + 1) % modeKeys.length
+      const nextModeKey = modeKeys[nextIndex]
+      const nextMode = playModeMap[nextModeKey]
+      this.setPlayMode(nextMode.code)
     },
     togglePlaylistShow() {
       this.setPlaylistShow(!this.isPlaylistShow)
@@ -161,7 +191,17 @@ export default {
     togglePlayerShow() {
       this.setPlayerShow(!this.isPlayerShow)
     },
-    ...mapMutations(["setCurrentTime", "setPlayingState", "setPlaylistShow", "setPlayerShow"]),
+    goGitHub() {
+      window.open("https://github.com/sl1673495/vue-netease-music")
+    },
+
+    ...mapMutations([
+      "setCurrentTime",
+      "setPlayingState",
+      "setPlayMode",
+      "setPlaylistShow",
+      "setPlayerShow"
+    ]),
     ...mapActions(["startSong"])
   },
   watch: {
@@ -173,13 +213,11 @@ export default {
         return
       }
       // 单曲循环
-      if (oldSong) {
-        if (newSong.id === oldSong.id) {
-          this.setCurrentTime(0)
-          this.audio.currentTime = 0
-          this.play()
-          return
-        }
+      if (oldSong && newSong.id === oldSong.id) {
+        this.setCurrentTime(0)
+        this.audio.currentTime = 0
+        this.play()
+        return
       }
       this.songReady = false
       if (this.timer) {
@@ -197,10 +235,19 @@ export default {
   },
   computed: {
     hasCurrentSong() {
-      return !!this.currentSong.id
+      return isDef(this.currentSong.id)
     },
     playIcon() {
       return this.playing ? "pause" : "play"
+    },
+    currentMode() {
+      return playModeMap[this.playMode]
+    },
+    modeIcon() {
+      return this.currentMode.icon
+    },
+    playModeText() {
+      return this.currentMode.name
     },
     audio() {
       return this.$refs.audio
@@ -208,17 +255,26 @@ export default {
     // 播放的进度百分比
     playedPercent() {
       const { durationSecond } = this.currentSong
-      return Math.min(this.currentTime / durationSecond, 1)
+      return Math.min(this.currentTime / durationSecond, 1) || 0
     },
     playControlIcon() {
-      return this.isPlayerShow ? 'shrink' : 'open'
+      return this.isPlayerShow ? "shrink" : "open"
     },
-    ...mapState(["currentSong", "currentTime", "playing", "isPlaylistShow", "isPlaylistPromptShow", "isPlayerShow"]),
+    shareUrl() {
+      return `${window.location.origin}?shareMusicId=${this.currentSong.id}`
+    },
+    ...mapState([
+      "currentSong",
+      "currentTime",
+      "playing",
+      "playMode",
+      "isPlaylistShow",
+      "isPlaylistPromptShow",
+      "isPlayerShow"
+    ]),
     ...mapGetters(["prevSong", "nextSong"])
   },
-  components: {
-    ProgressBar, Volume
-  }
+  components: { Share }
 }
 </script>
 
@@ -252,12 +308,17 @@ export default {
 
       img {
         &.blur {
-          filter: blur(4px);
+          filter: blur(2px);
         }
       }
 
       .player-control {
         @include abs-center;
+      }
+
+      .mask {
+        @include abs-stretch;
+        background: rgba(0, 0, 0, 0.2);
       }
     }
 
@@ -311,6 +372,7 @@ export default {
 
     .play-icon {
       @include flex-center();
+      position: relative;
       width: 45px;
       height: 45px;
       margin: 0 16px;
@@ -336,6 +398,16 @@ export default {
     align-items: center;
     justify-content: flex-end;
     flex: 6;
+
+    .mode-item {
+      display: block;
+      margin-right: 16px;
+      width: 22px;
+    }
+
+    .volume-item {
+      margin-right: 22px;
+    }
   }
 
   .progress-bar-wrap {

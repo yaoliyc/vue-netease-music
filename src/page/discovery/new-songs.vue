@@ -6,17 +6,17 @@
     <Title>最新音乐</Title>
     <div class="list-wrap">
       <div
-        class="list"
         :key="listIndex"
+        class="list"
         v-for="(list, listIndex) in thunkedList"
       >
         <SongCard
-          class="song-card"
-          v-for="(item,index) in list"
-          v-bind="nomalizeSong(item)"
-          :order="getSongOrder(listIndex, index)"
           :key="item.id"
-          @click.native="onClickSong(item)"
+          :order="getSongOrder(listIndex, index)"
+          @click.native="onClickSong(listIndex, index)"
+          class="song-card"
+          v-bind="nomalizeSong(item)"
+          v-for="(item,index) in list"
         />
       </div>
     </div>
@@ -24,11 +24,10 @@
 </template>
 
 <script>
-import { mapActions, mapMutations } from "vuex"
-import { getNewSongs } from "@/api/discovery"
-import Title from "@/base/title"
+import { mapActions, mapMutations } from "@/store/helper/music"
+import { getNewSongs } from "@/api"
 import SongCard from "@/components/song-card"
-import { createSong } from "@/utils/song"
+import { createSong } from "@/utils"
 
 const songsLimit = 10
 export default {
@@ -51,17 +50,27 @@ export default {
         id,
         name,
         song: {
+          mvid,
           artists,
           album: { blurPicUrl },
           duration
         }
       } = song
-      return createSong({ id, name, img: blurPicUrl, artists, duration })
+      return createSong({
+        id,
+        name,
+        img: blurPicUrl,
+        artists,
+        duration,
+        mvId: mvid
+      })
     },
-    onClickSong(song) {
-      const nomalizedSong = this.nomalizeSong(song)
+    onClickSong(listIndex, index) {
+      // 这里因为getSongOrder是从1开始显示, 所以当做数组下标需要减一
+      const nomalizedSongIndex = this.getSongOrder(listIndex, index) - 1
+      const nomalizedSong = this.normalizedSongs[nomalizedSongIndex]
       this.startSong(nomalizedSong)
-      this.setPlaylist({ data: this.normalizedSongs })
+      this.setPlaylist(this.normalizedSongs)
     },
     ...mapMutations(["setPlaylist"]),
     ...mapActions(["startSong"])
@@ -77,23 +86,19 @@ export default {
       return this.list.map(song => this.nomalizeSong(song))
     }
   },
-  components: { Title, SongCard }
+  components: { SongCard }
 }
 </script>
 
 <style lang="scss" scoped>
-.list-wrap {
-  display: flex;
+.new-songs {
+  margin-bottom: 36px;
+  .list-wrap {
+    display: flex;
 
-  .list {
-    flex: 1;
-  }
-
-  .song-card {
-    cursor: pointer;
-
-    &:hover {
-      background: var(--light-bgcolor);
+    .list {
+      flex: 1;
+      overflow: hidden;
     }
   }
 }

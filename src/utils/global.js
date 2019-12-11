@@ -1,25 +1,38 @@
-
-import { Input, Carousel, CarouselItem, Table, TableColumn, Popover, Pagination } from 'element-ui'
-import * as commonUtils from './common'
-
-// import Icon from '@/base/icon'
-// import NButton from '@/base/button'
-// import Tabs from '@/base/tabs'
-
-// https://webpack.js.org/guides/dependency-management/#require-context
-const requireComponent = require.context('@/base', true, /[a-z0-9]+\.(jsx?|vue)$/i)
+import {
+  Input,
+  Dialog,
+  Button,
+  Loading,
+  Carousel,
+  CarouselItem,
+  Table,
+  TableColumn,
+  Popover,
+  Pagination,
+} from "element-ui"
+import VueLazyload from "vue-lazyload"
+import Meta from 'vue-meta'
+import * as utils from "./index"
+import { EMPTY_IMG } from "./dom"
 
 export default {
   install(Vue) {
+    const requireComponent = require.context(
+      "@/base",
+      true,
+      /[a-z0-9]+\.(jsx?|vue)$/i,
+    )
     // 批量注册base组件
     requireComponent.keys().forEach(fileName => {
       const componentConfig = requireComponent(fileName)
       const componentName = componentConfig.default.name
-      Vue.component(componentName, componentConfig.default || componentConfig)
+      if (componentName) {
+        Vue.component(componentName, componentConfig.default || componentConfig)
+      }
     })
 
-    Vue.prototype.$ELEMENT = { size: 'small' };
-    Vue.prototype.$utils = commonUtils
+    Vue.prototype.$ELEMENT = { size: "small" }
+    Vue.prototype.$utils = utils
 
     Vue.use(Input)
     Vue.use(Carousel)
@@ -28,5 +41,15 @@ export default {
     Vue.use(TableColumn)
     Vue.use(Popover)
     Vue.use(Pagination)
-  }
+    Vue.use(Loading)
+    Vue.use(Dialog)
+    Vue.use(Button)
+
+    Vue.use(Meta)
+
+    Vue.use(VueLazyload, {
+      loading: EMPTY_IMG,
+      error: EMPTY_IMG,
+    })
+  },
 }

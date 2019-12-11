@@ -1,39 +1,46 @@
 <template>
-  <div
-    class="tab-wrap"
+  <ul
     :class="{[align]: true}"
+    class="tab-wrap"
   >
-    <div
-      v-for="(tab, index) in normalizedTabs"
-      :key="index"
-      class="tab-item"
-      :class="getActiveCls(tab, index)"
-      @click="onChangeTab(tab, index)"
-      :style="getTabItemStyle(tab, index)"
-    >
-      <span class="title">
-        {{tab.title}}
-      </span>
-    </div>
-  </div>
+    <template v-if="isRouteMode">
+      <router-link
+        :active-class="`${ROUTE_ACTIVE_CLS} ${activeItemClass}`"
+        :key="index"
+        :style="getItemStyle(tab, index)"
+        :to="tab.to"
+        class="tab-item"
+        ref="routerLinks"
+        tag="li"
+        v-for="(tab, index) in normalizedTabs"
+      >
+        <span class="title">{{tab.title}}</span>
+      </router-link>
+    </template>
+    <template v-else>
+      <li
+        :class="getItemCls(tab, index)"
+        :key="index"
+        :style="getItemStyle(tab, index)"
+        @click="onChangeTab(tab, index)"
+        class="tab-item"
+        v-for="(tab, index) in normalizedTabs"
+      >
+        <span class="title">{{tab.title}}</span>
+      </li>
+    </template>
+  </ul>
 </template>
 
 <script type="text/ecmascript-6">
+import { isDef } from "@/utils"
+
 const ACTIVE_PROP = "active"
 const ACTIVE_CHANGE = "tabChange"
-
-const typeStyleMap = {
-  small: {
-    itemStyle: { fontSize: "12px" },
-    activeItemStyle: { color: "#d33a31" }
-  }
-}
+const ROUTE_ACTIVE_CLS = "active"
 
 export default {
   name: "Tabs",
-  created() {
-    this.ACTIVE_PROP = ACTIVE_PROP
-  },
   props: {
     [ACTIVE_PROP]: {
       type: Number,
@@ -55,6 +62,15 @@ export default {
       type: Object,
       default: () => ({})
     },
+    itemClass: {
+      type: String
+    },
+    activeItemClass: {
+      type: String
+    },
+    // 不传的话对应大号字体 高亮加粗
+    // small对应小号字体 高亮红色
+    // split对应小号字体 分割线分隔 高亮背景色变灰文字变红
     type: {
       type: String
     }
@@ -62,6 +78,9 @@ export default {
   model: {
     prop: ACTIVE_PROP,
     event: ACTIVE_CHANGE
+  },
+  created() {
+    this.ROUTE_ACTIVE_CLS = ROUTE_ACTIVE_CLS
   },
   methods: {
     onChangeTab(tab, index) {
@@ -72,38 +91,45 @@ export default {
       }
     },
     isActive(tab, index) {
-      if (
-        // 路由模式
-        (this.isRouteMode && this.$route.path === tab.to) ||
-        // 非路由模式
-        (!this.isRouteMode && index === this[ACTIVE_PROP])
-      ) {
-        return true
+      // 路由模式
+      if (this.isRouteMode) {
+        const {
+          resolved: { path: resolvedPath }
+        } = this.$router.resolve(tab.to)
+        return resolvedPath === this.$route.path
+      } else {
+        return index === this[ACTIVE_PROP]
       }
-      return false
     },
-    getActiveCls(tab, index) {
-      const ACTIVE_CLS = "active"
-      return this.isActive(tab, index) ? ACTIVE_CLS : ""
+    getItemCls(tab, index) {
+      let base = []
+      if (this.itemClass) {
+        base.push(this.itemClass)
+      }
+      if (this.type) {
+        base.push(this.type)
+      }
+      if (this.isActive(tab, index)) {
+        if (this.activeItemClass) {
+          base.push(this.activeItemClass)
+        }
+        base.push("active")
+      }
+      return base.join(" ")
     },
-    getTabItemStyle(tab, index) {
+    getItemStyle(tab, index) {
       return Object.assign(
         {},
-        (typeStyleMap[this.type] || {}).itemStyle,
         this.itemStyle,
         this.isActive(tab, index)
-          ? Object.assign(
-              {},
-              (typeStyleMap[this.type] || {}).activeItemStyle,
-              this.activeItemStyle
-            )
+          ? Object.assign({}, this.activeItemStyle)
           : null
       )
     }
   },
   computed: {
     isRouteMode() {
-      return this.tabs.length && !!this.tabs[0].to
+      return this.tabs.length && isDef(this.tabs[0].to)
     },
     normalizedTabs() {
       return typeof this.tabs[0] === "string"
@@ -116,7 +142,6 @@ export default {
 
 <style lang="scss" scoped>
 .tab-wrap {
-  // padding: 12px;
   display: flex;
 
   &.center {
@@ -128,7 +153,8 @@ export default {
   }
 
   .tab-item {
-    padding: 12px;
+    padding: 12px 0;
+    margin: 0 12px;
     color: var(--tab-item-color);
     font-size: $font-size-medium;
     white-space: nowrap;
@@ -139,6 +165,54 @@ export default {
 
       &:hover {
         color: var(--tab-item-active-color);
+      }
+    }
+
+    // 对应prop中的type字段
+    &.small {
+      font-size: $font-size-sm;
+
+      &.active {
+        color: $theme-color;
+      }
+    }
+
+    &.theme {
+      font-size: $font-size;
+
+      &.active {
+        color: $theme-color;
+        border-bottom: 2px solid $theme-color;
+        font-weight: $font-weight-bold;
+      }
+    }
+
+    &.split {
+      font-size: $font-size-sm;
+      padding: 4px 12px;
+      margin: 0 16px;
+      border-radius: 999em;
+
+      &.active {
+        color: $theme-color;
+        background: var(--shallow-theme-bgcolor);
+      }
+
+      &:not(:last-child) {
+        &::after {
+          position: relative;
+          left: 28px;
+          width: 1px;
+          height: 100%;
+          background: var(--border);
+          display: inline-block;
+          vertical-align: middle;
+          content: " ";
+        }
+
+        .title {
+          vertical-align: middle;
+        }
       }
     }
 

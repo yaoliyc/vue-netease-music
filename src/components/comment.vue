@@ -1,40 +1,27 @@
 <template>
-  <div
-    v-if="comment"
-    class="comment"
-  >
+  <div class="comment" v-if="comment">
     <div class="avatar">
-      <img :src="$utils.genImgUrl(comment.user.avatarUrl, 80)" />
+      <img v-lazy="$utils.genImgUrl(comment.user.avatarUrl, 80)" />
     </div>
-    <div
-      class="content"
-      :class="{ border }"
-    >
+    <div :class="{ border }" class="content">
       <p class="comment-text">
-        <span class="username">
-          {{comment.user.nickname}}:
-        </span>
-        <span class="text">
-          {{comment.content}}
-        </span>
+        <span class="username">{{ comment.user.nickname }}:</span>
+        <span class="text">{{ comment.content }}</span>
       </p>
-      <div
-        class="replied"
-        v-if="comment.beReplied.length"
-      >
+      <div class="replied" v-if="comment.beReplied.length">
         <p class="comment-text">
-          <span class="username">
-            {{comment.beReplied[0].user.nickname}}:
-          </span>
-          <span class="text">
-            {{comment.beReplied[0].content}}
-          </span>
+          <span class="username"
+            >{{ comment.beReplied[0].user.nickname }}:</span
+          >
+          <span class="text">{{ comment.beReplied[0].content }}</span>
         </p>
       </div>
       <div class="bottom">
-        <span class="date">
-          {{$utils.formatDate(comment.time)}}
-        </span>
+        <span class="date">{{ $utils.formatDate(comment.time) }}</span>
+        <div class="actions">
+          <Icon :size="12" type="good" />
+          {{ comment.likedCount }}
+        </div>
       </div>
     </div>
   </div>
@@ -42,7 +29,7 @@
 
 <script type="text/ecmascript-6">
 export default {
-  props: ['comment', 'border']
+  props: ["comment", "border"]
 }
 </script>
 
@@ -78,6 +65,8 @@ export default {
 
     .comment-text {
       .username {
+        display: inline-block;
+        margin-right: 4px;
         color: $blue;
       }
 
@@ -92,6 +81,10 @@ export default {
       margin-top: 8px;
 
       .date {
+        color: var(--font-color-grey-shallow);
+      }
+
+      .actions {
         color: var(--font-color-grey-shallow);
       }
     }

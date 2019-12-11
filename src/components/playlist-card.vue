@@ -1,36 +1,24 @@
 <template>
-  <div
-    @click="onClickCard"
-    class="playlist-card"
-  >
+  <div @click="onClickCard" class="playlist-card">
     <div class="img-wrap">
-      <img :src="$utils.genImgUrl(img, 300)" />
-      <div
-        v-if="desc"
-        class="desc-wrap"
-      >
-        <span class="desc">{{desc}}</span>
+      <img v-lazy="$utils.genImgUrl(img, 300)" />
+      <div class="desc-wrap" v-if="desc">
+        <span class="desc">{{ desc }}</span>
       </div>
-      <PlayIcon
-        :size="36"
-        class="play-icon"
-      />
+      <PlayIcon :size="36" class="play-icon" />
     </div>
-    <p class="name">{{name}}</p>
+    <p class="name">{{ name }}</p>
   </div>
 </template>
 
 <script>
-import PlayIcon from '@/base/play-icon'
-
 export default {
   props: ["id", "img", "name", "desc"],
   methods: {
     onClickCard() {
       this.$router.push(`/playlist/${this.id}`)
-    }
+    },
   },
-  components: { PlayIcon }
 }
 </script>
 

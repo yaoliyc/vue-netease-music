@@ -5,10 +5,10 @@
 </template>
 
 <script type="text/ecmascript-6">
-import { hasParent } from '@/utils/dom'
+import { hasParent } from '@/utils'
 
 export default {
-  name: 'LeaveHide',
+  name: 'Toggle',
   props: {
     show: {
       type: Boolean,
@@ -32,7 +32,7 @@ export default {
         triggerElement,
         reserves.concat(this.reserveDoms)
       )) {
-        this.$emit('clickOutside')
+        this.$emit('update:show', false)
       }
     },
     bindClick() {

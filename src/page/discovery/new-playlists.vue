@@ -6,21 +6,20 @@
     <Title>推荐歌单</Title>
     <div class="list-wrap">
       <PlaylistCard
-        v-for="item in list"
-        :key="item.id"
-        :id="item.id"
-        :name="item.name"
-        :img="item.picUrl"
         :desc="item.copywriter"
+        :id="item.id"
+        :img="item.picUrl"
+        :key="item.id"
+        :name="item.name"
+        v-for="item in list"
       />
     </div>
   </div>
 </template>
 
 <script>
-import Title from "@/base/title"
 import PlaylistCard from "@/components/playlist-card"
-import { getPersonalized } from "@/api/discovery"
+import { getPersonalized } from "@/api"
 
 export default {
   async created() {
@@ -32,7 +31,7 @@ export default {
       list: []
     }
   },
-  components: { Title, PlaylistCard }
+  components: { PlaylistCard }
 }
 </script>
 

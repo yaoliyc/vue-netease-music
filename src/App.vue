@@ -4,6 +4,7 @@
     <Player />
     <MiniPlayer />
     <Playlist />
+    <ShareReader />
   </div>
 </template>
 
@@ -11,10 +12,16 @@
 import Layout from "@/layout"
 import MiniPlayer from "@/components/mini-player"
 import Playlist from "@/components/playlist"
-import Player from '@/components/player'
+import Player from "@/components/player"
+import ShareReader from "@/components/share-reader"
 
 export default {
-  components: { Layout, MiniPlayer, Playlist, Player }
+  metaInfo() {
+    return {
+      title: "欢迎来到sshPlayer"
+    }
+  },
+  components: { Layout, MiniPlayer, Playlist, Player, ShareReader }
 }
 </script>
 
@@ -22,7 +29,6 @@ export default {
 #app {
   height: 100%;
   background-color: var(--body-bgcolor);
-  color: var(--font-color);
   font-size: $font-size;
 }
 </style>

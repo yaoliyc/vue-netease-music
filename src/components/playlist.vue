@@ -1,25 +1,25 @@
 <template>
-  <LeaveHide
-    @clickOutside="setPlaylistShow(false)"
-    :show="isPlaylistShow"
+  <Toggle
     :reserveDoms="reserveDoms"
+    :show="isPlaylistShow"
+    @update:show="setPlaylistShow(false)"
   >
     <div
+      class="playlist"
       ref="playlist"
       v-show="isPlaylistShow"
-      class="playlist"
     >
       <Tabs
-        v-model="activeTab"
         :tabs="tabs"
         align="center"
+        v-model="activeTab"
       />
       <div class="header">
         <p class="total">总共{{dataSource.length}}首</p>
         <div
+          @click="clear"
           class="remove"
           v-if="dataSource.length"
-          @click="clear"
         >
           <Icon type="remove" />
           <span class="text">清空</span>
@@ -27,66 +27,51 @@
       </div>
       <template>
         <div
-          v-if="dataSource.length"
           class="song-table-wrap"
+          v-if="dataSource.length"
         >
           <SongTable
-            :songs="dataSource"
             :hideColumns="['index', 'img', 'albumName']"
-            :showPromptOnPlay="false"
+            :songs="dataSource"
           />
         </div>
         <div
           class="empty"
           v-else
-        >
-          你还没有添加任何歌曲
-        </div>
+        >你还没有添加任何歌曲</div>
       </template>
     </div>
-  </LeaveHide>
-
+  </Toggle>
 </template>
 
 <script type="text/ecmascript-6">
-import { mapState, mapMutations, mapActions } from 'vuex'
-import LeaveHide from '@/base/leave-hide'
-import SongTable from './song-table'
+import { mapState, mapMutations, mapActions } from "@/store/helper/music"
+import SongTable from "./song-table"
 export default {
   mounted() {
     // 点击需要保留播放器的dom
-    this.reserveDoms = [
-      document.getElementById('mini-player'),
-    ]
+    this.reserveDoms = [document.getElementById("mini-player")]
   },
   data() {
-    this.tabs = [{
-      title: '播放列表',
-    }, {
-      title: '历史记录'
-    }]
+    this.tabs = ["播放列表", "历史记录"]
     this.LIST_TAB = 0
     this.HISTORY_TAB = 1
 
     return {
       activeTab: this.LIST_TAB,
-      reserveDoms: null,
+      reserveDoms: null
     }
   },
   methods: {
     clear() {
       if (this.isPlaylist) {
-        this.setPlaylist({
-          data: [],
-          showPrompt: false
-        })
-        this.clearCurrentSong()
+        this.clearPlaylist()
       } else {
         this.clearHistory()
       }
     },
-    ...mapMutations(['setPlaylistShow', 'setPlaylist']),
-    ...mapActions(['clearCurrentSong', 'clearHistory'])
+    ...mapMutations(["setPlaylistShow", "setPlaylist"]),
+    ...mapActions(["clearCurrentSong", "clearPlaylist", "clearHistory"])
   },
   computed: {
     dataSource() {
@@ -95,11 +80,10 @@ export default {
     isPlaylist() {
       return this.activeTab === this.LIST_TAB
     },
-    ...mapState(['isPlaylistShow', 'playlist', 'playHistory'])
+    ...mapState(["isPlaylistShow", "playlist", "playHistory"])
   },
   components: {
-    SongTable,
-    LeaveHide,
+    SongTable
   }
 }
 </script>
